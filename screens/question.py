@@ -1,21 +1,35 @@
 import streamlit as st
+from db.db import get_questions, get_question_words
 
 def show():
     st.title("問題画面")
 
-    # ダミーデータ（後でDBから取得する形に変える）
-    dummy_questions = ["ダミー設問1", "ダミー設問2", "ダミー設問3"]
+    field = st.session_state.get("field")
+    difficulty = st.session_state.get("difficulty")
+    question_number = st.session_state.get("question")  # 1, 2, 3
+
+    questions = get_questions(field, difficulty)
+
+    if not questions or question_number is None or question_number > len(questions):
+        st.write("問題が見つかりません")
+        if st.button("戻る"):
+            st.session_state.page = "question_select"
+            st.rerun()
+        return
+
+    question_id = questions[question_number - 1][0]
+    question_words = get_question_words(question_id)
 
     if "answers" not in st.session_state:
         st.session_state.answers = {}
 
-    for i, q in enumerate(dummy_questions):
-        st.write(q)
-        st.session_state.answers[i] = st.text_input(f"答え（{i+1}）", key=f"answer_{i}")
+    for i, (word, blank_position, blank_number) in enumerate(question_words):
+        displayed = word[:blank_position] + "□" + word[blank_position + 1:]
+        st.write(displayed)
+        st.session_state.answers[i] = st.text_input(f"空欄{blank_number}", key=f"answer_{i}")
 
     if st.button("解答する"):
-        # 未回答チェック
-        unanswered = [i+1 for i, q in enumerate(dummy_questions) if not st.session_state.answers.get(i)]
+        unanswered = [i + 1 for i in range(len(question_words)) if not st.session_state.answers.get(i)]
 
         if unanswered:
             st.session_state.show_warning = True
@@ -25,7 +39,6 @@ def show():
             st.session_state.page = "answer"
             st.rerun()
 
-    # 警告表示（画面遷移せず、その場に出る）
     if st.session_state.get("show_warning"):
         st.warning(f"未回答の問題があります：{', '.join(map(str, st.session_state.unanswered))}番")
         if st.button("このまま解答する"):

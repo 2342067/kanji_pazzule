@@ -21,6 +21,12 @@ def show():
         st.session_state.page = "question"
         st.rerun()
 
+    if st.button("設問4"):
+        st.session_state.question = 4
+        st.session_state.show_warning = False
+        st.session_state.page = "question"
+        st.rerun()
+
     if st.button("戻る"):
         st.session_state.page = "difficulty"
         st.rerun()
