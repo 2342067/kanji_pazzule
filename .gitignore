@@ -1,0 +1,9 @@
+# Pythonのキャッシュ
+__pycache__/
+
+# 新聞データと、そこから作った中間データ（ローカル専用）
+tools/news_csv/input/
+tools/news_csv/output/
+tools/news_join/input/
+tools/news_join/output/
+tools/puzzle_create/join_2002.csv

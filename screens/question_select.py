@@ -28,5 +28,5 @@ def show():
         st.rerun()
 
     if st.button("戻る"):
-        st.session_state.page = "difficulty"
+        st.session_state.page = "title"
         st.rerun()
