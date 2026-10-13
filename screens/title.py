@@ -2,7 +2,7 @@ import streamlit as st
 
 FIELDS = ["理科", "社会", "教養"]
 DIFFICULTIES = {1: "やさしい", 2: "ふつう", 3: "難しい"}
-WORD_COUNTS = [10, 15, 20]
+WORD_COUNTS = [9, 15, 21]
 
 
 def show():
