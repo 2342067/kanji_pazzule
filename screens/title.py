@@ -1,12 +1,13 @@
 import streamlit as st
 
+APP_TITLE = "漢字抜け熟語パズル"
+
 FIELDS = ["理科", "社会", "教養"]
 DIFFICULTIES = {1: "やさしい", 2: "ふつう", 3: "難しい"}
-WORD_COUNTS = [9, 15, 21]
+WORD_COUNTS = {9: "小", 15: "中", 21: "大"}
 
 
 def show():
-    st.title("タイトル画面")
 
     field = st.segmented_control(
         "分野",
@@ -16,7 +17,7 @@ def show():
     )
 
     difficulty = st.segmented_control(
-        "難易度",
+        "熟語難度",
         list(DIFFICULTIES.keys()),
         format_func=lambda d: DIFFICULTIES[d],
         default=st.session_state.get("difficulty"),
@@ -24,9 +25,9 @@ def show():
     )
 
     word_count = st.segmented_control(
-        "熟語数",
-        WORD_COUNTS,
-        format_func=lambda n: f"{n}語",
+        "問題の大きさ",
+        list(WORD_COUNTS.keys()),
+        format_func=lambda n: WORD_COUNTS[n],
         default=st.session_state.get("word_count"),
         key="word_count_input",
     )

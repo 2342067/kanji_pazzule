@@ -1,7 +1,8 @@
 import streamlit as st
+from main.style import show_page_heading
 
 def show():
-    st.title("問題選択画面")
+    show_page_heading("問題選択画面")
 
     if st.button("設問1"):
         st.session_state.question = 1
