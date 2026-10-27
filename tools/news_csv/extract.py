@@ -6,7 +6,8 @@
     output/     freq_<同名>.CSVが出力される場所
 
 実行すると:
-    1. inputフォルダ内のCSVを読み込み、形態素解析して漢字のみの一般名詞・サ変接続名詞を抽出する
+    1. inputフォルダ内のCSVを読み込み、SudachiPy（Bモード）で形態素解析して
+       漢字のみの普通名詞（一般・サ変可能）を抽出する
     2. 抽出した名詞を頻度順に並び替えfreq_<同名>.CSVでoutputに出力する
     3. inputフォルダ内全てのCSVに対して同手順を行う
 
@@ -24,7 +25,7 @@ import os
 import re
 from collections import Counter
 
-from janome.tokenizer import Tokenizer
+from sudachipy import dictionary, tokenizer
 
 # 漢字のみ・2文字以上で構成された語を対象とする
 KANJI_ONLY = re.compile(r'^[\u4E00-\u9FFF]{2,}$')
@@ -32,24 +33,55 @@ KANJI_ONLY = re.compile(r'^[\u4E00-\u9FFF]{2,}$')
 # 本文テキストデータの列名（CSVのヘッダーに合わせる）
 TEXT_COLUMN = "本文テキストデータ"
 
+# 分割モード（A: 短い / B: 中間 / C: 長い）
+SPLIT_MODE = tokenizer.Tokenizer.SplitMode.B
+
+# SudachiPyが一度に解析できる入力の上限（バイト）
+MAX_INPUT_BYTES = 49149
+
+# 「。」で区切っても上限を超える部分を分割するときの文字数
+# （UTF-8は1文字最大4バイトなので、12000文字なら48000バイト以下に収まる）
+FALLBACK_CHUNK_CHARS = 12000
+
 INPUT_DIR = "input"
 OUTPUT_DIR = "output"
 
 
-def extract_kanji_nouns(text, tokenizer):
-    """本文テキストから、漢字のみで構成された一般名詞・サ変接続名詞を抽出する"""
+def split_text(text):
+    """
+    上限を超える本文を区切って返す。上限以内ならそのまま返す。
+    まず「。」で区切り、それでも上限を超える部分は文字数で分割する。
+    """
+    if len(text.encode("utf-8")) <= MAX_INPUT_BYTES:
+        return [text]
+
+    parts = []
+    for sentence in text.split("。"):
+        if not sentence:
+            continue
+        if len(sentence.encode("utf-8")) <= MAX_INPUT_BYTES:
+            parts.append(sentence)
+        else:
+            for i in range(0, len(sentence), FALLBACK_CHUNK_CHARS):
+                parts.append(sentence[i:i + FALLBACK_CHUNK_CHARS])
+    return parts
+
+
+def extract_kanji_nouns(text, sudachi):
+    """本文テキストから、漢字のみで構成された普通名詞（一般・サ変可能）を抽出する"""
     nouns = []
-    for token in tokenizer.tokenize(text):
-        pos = token.part_of_speech.split(",")
-        # 名詞・一般 と 名詞・サ変接続 を対象（固有名詞・数・非自立などは除く）
-        if pos[0] == "名詞" and pos[1] in ("一般", "サ変接続"):
-            surface = token.surface
-            if KANJI_ONLY.match(surface):
-                nouns.append(surface)
+    for part in split_text(text):
+        for morpheme in sudachi.tokenize(part, SPLIT_MODE):
+            pos = morpheme.part_of_speech()
+            # 普通名詞・一般 と 普通名詞・サ変可能 を対象（固有名詞・数詞・代名詞などは除く）
+            if pos[0] == "名詞" and pos[1] == "普通名詞" and pos[2] in ("一般", "サ変可能"):
+                surface = morpheme.surface()
+                if KANJI_ONLY.match(surface):
+                    nouns.append(surface)
     return nouns
 
 
-def count_words_in_csv(csv_path, tokenizer):
+def count_words_in_csv(csv_path, sudachi):
     """1つのCSVファイルを読み込み、熟語の出現頻度をCounterとして返す"""
     counter = Counter()
     with open(csv_path, encoding="shift_jis", errors="replace") as f:
@@ -64,7 +96,7 @@ def count_words_in_csv(csv_path, tokenizer):
             if not text:
                 continue
             row_count += 1
-            for word in extract_kanji_nouns(text, tokenizer):
+            for word in extract_kanji_nouns(text, sudachi):
                 counter[word] += 1
 
     print(f"  → {row_count} 行を処理しました（ユニーク熟語数: {len(counter)}）")
@@ -107,11 +139,11 @@ def main():
 
     print(f"対象ファイル数: {len(csv_paths)} 件")
 
-    tokenizer = Tokenizer()
+    sudachi = dictionary.Dictionary().create()
 
     for path in csv_paths:
         print(f"\n読み込み中: {path}")
-        counter = count_words_in_csv(path, tokenizer)
+        counter = count_words_in_csv(path, sudachi)
 
         filename = os.path.basename(path)
         freq_path = os.path.join(OUTPUT_DIR, f"freq_{filename}")

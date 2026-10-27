@@ -1,22 +1,9 @@
-import csv
 import random
 from collections import defaultdict, deque
 
 # ==== パラメータ ====
 ADDITIONAL_BLANK_PROBABILITY = 0.4   # 残り文字1つごとに独立適用
-MIN_FREQUENCY = 100                  # この頻度未満の単語はDBから除外
 FORCE_BRANCH_HINT_INTERVAL = 2       # 経路上でヒントなしがこの回数連続しないよう、次の展開を強制的に2分岐にする
-
-
-def load_words(csv_path, min_frequency=0):
-    """word, frequency の2列CSVから、頻度がmin_frequency以上の単語リストを読み込む"""
-    words = []
-    with open(csv_path, encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            if int(row["frequency"]) >= min_frequency:
-                words.append(row["word"])
-    return words
 
 
 def build_graph(words):
@@ -167,26 +154,3 @@ def generate_puzzle(words, target_word_count, seed=None):
         "start_word": start_word,
     }
     return puzzle_words, stats
-
-
-def print_puzzle(puzzle_words):
-    """生成結果を見やすく表示する（デバッグ用）"""
-    for entry in puzzle_words:
-        word = entry["word"]
-        display = "".join(
-            f"[{entry['blanks'][i][1]}]" if i in entry["blanks"] else ch
-            for i, ch in enumerate(word)
-        )
-        print(f"{display}   (正解: {word})")
-
-
-if __name__ == "__main__":
-    words = load_words("join_2002.csv", min_frequency=MIN_FREQUENCY)
-    print(f"DB語数（頻度{MIN_FREQUENCY}以上）: {len(words)}")
-
-    puzzle_words, stats = generate_puzzle(words, target_word_count=10)
-    print(f"起点単語: {stats['start_word']}")
-    print()
-    print_puzzle(puzzle_words)
-    print()
-    print(stats)
