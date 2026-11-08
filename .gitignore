@@ -2,8 +2,12 @@
 __pycache__/
 
 # 新聞データと、そこから作った中間データ（ローカル専用）
-tools/news_csv/input/
-tools/news_csv/output/
+tools/news_extract/input/
+tools/news_extract/output/
 tools/news_join/input/
 tools/news_join/output/
-tools/puzzle_create/join_2002.csv
+tools/puzzle_generate/join_2002.csv
+
+# 問題生成の作業用の出力（生成直後の問題と類似度の結果）
+tools/puzzle_generate/output/
+tools/puzzle_generate/check/

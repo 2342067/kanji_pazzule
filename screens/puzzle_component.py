@@ -1,53 +1,20 @@
 import streamlit as st
+from screens.ui_common import COMMON_CSS, COMMON_JS
 
 HTML = '<div class="root"></div>'
 
-CSS = """
-.root { font-family: "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif; }
-.header {
-    position: sticky; top: 0; z-index: 1;
-    background: #fff; padding: 4px 0; border-bottom: 1px solid #ddd;
-}
-.title-row { display: flex; justify-content: space-between; align-items: center; height: 32px; margin-bottom: 4px; }
-.title { font-size: 18px; font-weight: bold; }
-.back { font-size: 14px; padding: 4px 12px; border-radius: 6px; border: 1px solid #888; background: #f4f4f4; }
-.back.confirm { border-color: #d33; color: #d33; background: #fee; }
-.bar { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
-.box {
-    flex: 0 0 auto; width: 48px; height: 60px; border: 2px solid #888; border-radius: 8px;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-}
-.box .n { font-size: 12px; color: #666; line-height: 1; }
+CSS = COMMON_CSS + """
 .box input {
     width: 100%; border: none; background: transparent; outline: none;
-    font-size: 24px; text-align: center; padding: 0; font-family: inherit;
+    font-size: 24px; text-align: center; padding: 0; font-family: inherit; color: var(--fg);
 }
-.box.selected { background: #fff3b0; border-color: #e0a800; }
-.box.error { border-color: #d33; background: #fee; }
-.box.error input { color: #d33; font-size: 16px; }
-.warning { color: #d33; font-size: 14px; min-height: 1.2em; margin-top: 4px; }
-.grid {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 6px;
-}
-.word {
-    display: flex; justify-content: center; align-items: flex-start; gap: 2px;
-    border: 1px solid #ccc; border-radius: 8px; padding: 6px 2px 2px; font-size: 22px;
-}
-.slot { display: flex; flex-direction: column; align-items: center; }
-.slot .ch { height: 1.3em; line-height: 1.3em; }
-.slot .n { font-size: 10px; color: #666; height: 12px; line-height: 12px; }
-.blank {
-    width: 1.3em; height: 1.3em; border: 2px solid #888; border-radius: 4px; box-sizing: border-box;
-    display: flex; align-items: center; justify-content: center; cursor: pointer;
-}
-.blank.selected { background: #fff3b0; border-color: #e0a800; }
-.submit {
-    margin-top: 16px; width: 100%; font-size: 16px; padding: 10px;
-    border-radius: 8px; border: 1px solid #888; background: #f4f4f4;
-}
+.box.selected { background: var(--sel-bg); border-color: var(--sel-border); }
+.box.error { border-color: var(--err); background: var(--err-bg); }
+.box.error input { color: var(--err); font-size: 16px; }
+.blank.selected { background: var(--sel-bg); border-color: var(--sel-border); }
 """
 
-JS = """
+JS = COMMON_JS + """
 export default function(component) {
     const { parentElement, data, setTriggerValue } = component;
     const root = parentElement.querySelector(".root");
@@ -65,24 +32,21 @@ export default function(component) {
     }));
     numbers.sort((a, b) => a - b);
 
-    root.innerHTML = `
-        <div class="header">
-            <div class="title-row">
-                <div class="title"></div>
-                <button class="back">戻る</button>
-            </div>
-            <div class="bar"></div>
-            <div class="warning"></div>
-        </div>
-        <div class="grid"></div>
-        <button class="submit">解答する</button>
-    `;
-    const bar = root.querySelector(".bar");
-    const grid = root.querySelector(".grid");
-    const warning = root.querySelector(".warning");
-    const submitButton = root.querySelector(".submit");
-    const backButton = root.querySelector(".back");
-    root.querySelector(".title").textContent = data.title || "";
+    root.innerHTML = "";
+    // ヘッダー：右に「遊び方」（遊び方画面は未作成。押しても何も起きない）と「戻る」
+    const header = makeHeader(data.title || "", [[ICON_BACK, "戻る", null], [ICON_HELP, "遊び方", null]], false);
+    const backButton = header.buttons[0];
+    const bar = el("div", "bar");
+    const warning = el("div", "warning");
+    header.appendChild(bar);
+    header.appendChild(warning);
+    root.appendChild(header);
+    const grid = el("div", "grid");
+    grid.style.gridTemplateRows = "repeat(" + Math.ceil(words.length / 3) + ", auto)";
+    root.appendChild(grid);
+    const submitButton = el("button", "submit", "解答する");
+    submitButton.type = "button";
+    root.appendChild(submitButton);
 
     // 上の解答欄：四角そのものが入力欄
     numbers.forEach((n) => {
@@ -116,25 +80,18 @@ export default function(component) {
 
     // 問題（熟語）：空欄の番号は四角の下に出す
     words.forEach((w) => {
-        const word = document.createElement("div");
-        word.className = "word";
+        const word = el("div", "word");
         w.forEach((ch) => {
-            const slot = document.createElement("div");
-            slot.className = "slot";
-            const num = document.createElement("span");
-            num.className = "n";
+            const slot = el("div", "slot");
+            const num = el("span", "n");
             if (ch.n !== undefined) {
-                const blank = document.createElement("span");
-                blank.className = "blank";
+                const blank = el("span", "blank");
                 blank.dataset.num = ch.n;
                 blank.addEventListener("click", () => toggle(ch.n));
                 slot.appendChild(blank);
                 num.textContent = ch.n;
             } else {
-                const span = document.createElement("span");
-                span.className = "ch";
-                span.textContent = ch.c;
-                slot.appendChild(span);
+                slot.appendChild(el("span", "ch", ch.c));
             }
             slot.appendChild(num);
             word.appendChild(slot);

@@ -36,13 +36,13 @@ def get_words(field=None, difficulty=None):
     return rows
 
 
-def get_questions(field, difficulty):
-    """指定した分野・難易度の問題一覧を取得する"""
+def get_questions(field, difficulty, word_count):
+    """指定した分野・難易度・熟語数の問題一覧を取得する"""
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(
-        "SELECT id, field, difficulty, word_count FROM questions WHERE field=? AND difficulty=? ORDER BY id",
-        (field, difficulty)
+        "SELECT id, field, difficulty, word_count FROM questions WHERE field=? AND difficulty=? AND word_count=? ORDER BY id",
+        (field, difficulty, word_count)
     )
     rows = cur.fetchall()
     conn.close()
@@ -50,7 +50,7 @@ def get_questions(field, difficulty):
 
 
 def get_question_words(question_id):
-    """指定した問題に含まれる単語と空欄情報を取得する"""
+    """指定した問題に含まれる単語と空欄情報を、登録した順に取得する"""
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
@@ -58,6 +58,7 @@ def get_question_words(question_id):
         FROM question_words
         JOIN words ON question_words.word_id = words.id
         WHERE question_words.question_id=?
+        ORDER BY question_words.id
     """, (question_id,))
     rows = cur.fetchall()
     conn.close()
