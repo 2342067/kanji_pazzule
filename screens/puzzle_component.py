@@ -250,11 +250,11 @@ export default function(component) {
             render();
             return;
         }
-        // 未回答があれば1回目は警告だけ出し、もう一度押したら解答する
+        // 未解答があれば1回目は警告だけ出し、もう一度押したら解答する
         const empty = numbers.filter((n) => !state.answers[String(n)]);
         if (empty.length > 0 && !state.confirm) {
             state.confirm = true;
-            state.warning = "未回答があります（" + empty.join("、") + "番）。もう一度押すと解答します";
+            state.warning = "未解答があります（" + empty.join("、") + "番）\\nもう一度押すと解答します";
             render();
             return;
         }

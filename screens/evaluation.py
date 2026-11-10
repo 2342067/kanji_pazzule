@@ -30,6 +30,7 @@ SCALE = ["1", "2", "3", "4", "5"]
 REUSE = ["ぜひ使いたい", "時間があれば使いたい", "あまり使いたくない", "使いたくない"]
 STRENGTHS = ["得意", "ふつう", "苦手"]
 
+CONSENT_TITLE = "回答の利用について"
 CONSENT_TEXT = (
     "この回答は、卒業研究（漢字抜け熟語パズル）の評価のために使います。"
     "名前と学年は回答の整理のためだけに使い、論文や発表では個人がわかる形で公表しません。"
@@ -42,22 +43,34 @@ def now_text():
     return f"{datetime.now(JST):%Y-%m-%d %H:%M:%S}"
 
 
+def question(number, text, note=None):
+    """設問文を出す：「Q番号. 設問文」を太字で出し、補足（note）があれば次の行に小さく出す
+
+    設問文をここで出すので、このあとに置く入力の部品は label_visibility="collapsed" にしてラベルを隠す。
+    """
+    st.markdown(f"**Q{number}. {text}**")
+    if note:
+        st.caption(note)
+
+
 def ask_person():
     """名前・学年を聞き、(名前, 学年) を返す。一度送ると、続けて使っている間は入力済みになる
 
     名前は、解答の記録とアンケートを結びつけるのに使うので、空白をすべて取り除いたものを返す。
     """
-    name = st.text_input("名前", value=st.session_state.get("evaluation_name", ""))
+    name = st.text_input("**名前**", value=st.session_state.get("evaluation_name", ""))
     saved = st.session_state.get("evaluation_grade")
-    grade = st.selectbox("学年", GRADES, index=GRADES.index(saved) if saved in GRADES else None,
+    grade = st.selectbox("**学年**", GRADES, index=GRADES.index(saved) if saved in GRADES else None,
                          placeholder="選んでください")
     return "".join(name.split()), grade
 
 
 def ask_consent():
-    """同意の文とチェックを出し、チェックされているかを返す"""
-    st.write(CONSENT_TEXT)
-    return st.checkbox("上の内容に同意します", value=st.session_state.get("evaluation_consent", False))
+    """同意の文とチェックを枠で囲んで出し、チェックされているかを返す"""
+    with st.container(border=True):
+        st.markdown(f"**{CONSENT_TITLE}**")
+        st.write(CONSENT_TEXT)
+        return st.checkbox("上の内容に同意します", value=st.session_state.get("evaluation_consent", False))
 
 
 def show_contact():
@@ -116,17 +129,19 @@ def show():
     st.caption(question_info())
 
     if st.session_state.get("evaluation_sent") == result_key(result):
-        st.success("送信しました。ご協力ありがとうございます。")
+        st.success("送信しました  \nご協力ありがとうございます")
         back_button("問題選択に戻る", "question_select")
         return
 
     name, grade = ask_person()
     unknown_key = f"unknown_{result['question_id']}_{result['seconds']}"
+    question(1, "知らなかった熟語を選んでください", "いくつでも選べます。なければ「知らない熟語はなかった」を選んでください")
     unknown = st.pills(
-        "知らなかった熟語を選んでください（いくつでも）", result["words"] + [NO_UNKNOWN],
+        "知らなかった熟語", result["words"] + [NO_UNKNOWN], label_visibility="collapsed",
         selection_mode="multi", key=unknown_key, on_change=fix_unknown, args=(unknown_key,),
     )
-    feeling = st.radio("この問題の難しさはどうでしたか", FEELINGS, index=None, horizontal=True)
+    question(2, "この問題の難しさはどうでしたか")
+    feeling = st.radio("問題の難しさ", FEELINGS, index=None, horizontal=True, label_visibility="collapsed")
     consent = ask_consent()
 
     if st.button("送信する", type="primary"):
@@ -155,24 +170,37 @@ def show():
     show_contact()
 
 
+def show_about():
+    """評価実験の説明のページ：タイトル画面の「評価実験について」から開く（中身はこれから書く）"""
+    st.subheader("評価実験について")
+    st.write("準備中です")
+    back_button("タイトルに戻る", "title")
+    show_contact()
+
+
 def show_survey():
     """アンケートのページ：タイトル画面の「評価実験アンケート」から開く。全体の感想を1行送る"""
     st.subheader("評価実験アンケート")
 
     if st.session_state.get("survey_sent"):
-        st.success("送信しました。ご協力ありがとうございます。")
+        st.success("送信しました  \nご協力ありがとうございます")
         back_button("タイトルに戻る", "title")
         return
 
     name, grade = ask_person()
-    fun = st.radio("面白かったですか（1：まったく面白くなかった 〜 5：とても面白かった）",
-                   SCALE, index=None, horizontal=True)
-    usability = st.radio("使いやすかったですか（1：とても使いにくかった 〜 5：とても使いやすかった）",
-                         SCALE, index=None, horizontal=True)
-    reuse = st.radio("今後も利用したいですか", REUSE, index=None)
-    science = st.radio("理科は得意ですか", STRENGTHS, index=None, horizontal=True)
-    social = st.radio("社会は得意ですか", STRENGTHS, index=None, horizontal=True)
-    comment = st.text_area("改善案や要望、感想など（自由に書いてください）")
+    hidden = {"index": None, "label_visibility": "collapsed"}
+    question(1, "面白かったですか", "1:まったく面白くなかった 〜 5:とても面白かった")
+    fun = st.radio("面白さ", SCALE, horizontal=True, **hidden)
+    question(2, "使いやすかったですか", "1:とても使いにくかった 〜 5:とても使いやすかった")
+    usability = st.radio("使いやすさ", SCALE, horizontal=True, **hidden)
+    question(3, "今後も利用したいですか")
+    reuse = st.radio("今後の利用", REUSE, **hidden)
+    question(4, "理科は得意ですか")
+    science = st.radio("理科", STRENGTHS, horizontal=True, **hidden)
+    question(5, "社会は得意ですか")
+    social = st.radio("社会", STRENGTHS, horizontal=True, **hidden)
+    question(6, "改善案や要望、感想などがあれば書いてください", "空のままでも送れます(書いていただけると嬉しいです)")
+    comment = st.text_area("改善案や要望、感想", label_visibility="collapsed")
     consent = ask_consent()
 
     if st.button("送信する", type="primary"):

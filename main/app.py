@@ -26,3 +26,5 @@ elif st.session_state.page == "evaluation":
     evaluation.show()
 elif st.session_state.page == "survey":
     evaluation.show_survey()
+elif st.session_state.page == "about":
+    evaluation.show_about()

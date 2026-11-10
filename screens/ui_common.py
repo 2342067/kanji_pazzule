@@ -67,11 +67,14 @@ COMMON_CSS = """
 
 .page-heading { font-size: 16px; font-weight: bold; margin: 12px 0 8px; }
 .none { font-size: 14px; color: var(--sub); }
+/* 各画面の主な操作のボタン（次へ、解答する、解答を送信）：ロゴと同じ青で塗る。押せないときは灰色 */
 .submit {
-    margin-top: 16px; width: 100%; font-size: 16px; padding: 10px;
-    border-radius: 8px; border: 1px solid var(--gray-border); background: var(--gray-bg); font-family: inherit;
+    margin-top: 16px; width: 100%; font-size: 16px; padding: 12px; font-family: inherit;
+    border-radius: 999px; border: 1px solid #378ADD; background: #378ADD; color: #fff;
+    font-weight: bold; letter-spacing: 0.1em;
 }
-.submit:disabled { opacity: 0.5; }
+.submit:active { background: #2f77c0; border-color: #2f77c0; }
+.submit:disabled { background: var(--gray-bg); border-color: var(--card-border); color: var(--sub); }
 
 /* 番号マスと熟語カード（問題画面と解答画面で共通） */
 .question-info { display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: var(--sub); margin-bottom: 4px; }
@@ -83,7 +86,7 @@ COMMON_CSS = """
     display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box;
 }
 .box .n { font-size: 12px; color: var(--sub); line-height: 1; }
-.warning { color: var(--err); font-size: 14px; min-height: 1.2em; margin-top: 4px; }
+.warning { color: var(--err); font-size: 14px; min-height: 1.2em; margin-top: 4px; white-space: pre-line; }
 /* 熟語は縦に並べてから次の列へ進む（文字数順に並べるので、文字数の多い熟語ほど右の列に来る）。行数は JS で語数から決める */
 .grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-flow: column; gap: 8px; margin-top: 6px; }
 .word {
@@ -103,6 +106,7 @@ COMMON_CSS = """
 # 各画面の JS の先頭に置く共通の関数（export default より前に書く）
 COMMON_JS = """
 const ICON_HELP = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M6.2 6.2a1.9 1.9 0 1 1 2.6 1.8c-.5.2-.8.6-.8 1.1v.4" stroke-linecap="round"/><circle cx="8" cy="11.6" r=".6" fill="currentColor" stroke="none"/></svg>';
+const ICON_INFO = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M8 7.2v4" stroke-linecap="round"/><circle cx="8" cy="4.8" r=".6" fill="currentColor" stroke="none"/></svg>';
 const ICON_BACK = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const ICON_HOME = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2.5 7.5 8 3l5.5 4.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 6.5V13h3v-3.5h2V13h3V6.5" stroke-linejoin="round"/></svg>';
 const ICON_TIMER = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="9" r="5.5"/><path d="M6.5 1.5h3M8 1.5v2M8 6v3" stroke-linecap="round"/></svg>';

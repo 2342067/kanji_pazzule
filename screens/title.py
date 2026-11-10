@@ -16,8 +16,19 @@ CSS = COMMON_CSS + """
     height: 48px; font-size: 17px; border-radius: 8px; border: 2px solid var(--gray-border);
     background: var(--bg); color: var(--fg); font-family: inherit;
 }
-.opt.selected { background: var(--sel-bg); border-color: var(--sel-border); font-weight: bold; }
+/* 選んだ項目：ロゴの青を薄めた色（黄色は問題画面の番号のハイライト専用にする） */
+.opt.selected { background: #e6f1fb; border-color: #378ADD; color: #185fa5; font-weight: bold; }
 .title-next { margin-top: 24px; }
+/* 評価実験アンケートへの入口：「次へ」から離し、線で区切って出す */
+.survey-box { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--card-border); }
+.survey-heading { font-size: 14px; font-weight: bold; }
+.survey-note { font-size: 13px; color: var(--sub); margin-top: 2px; }
+/* アンケートのボタンは主な操作ではないので、白地に青の枠と文字にする */
+.survey-button {
+    margin-top: 8px; background: var(--bg); color: #185fa5; font-size: 14px; padding: 8px;
+    font-weight: normal; letter-spacing: 0;
+}
+.survey-button:active { background: #e6f1fb; border-color: #378ADD; }
 """
 
 JS = COMMON_JS + """
@@ -33,8 +44,11 @@ export default function(component) {
 
     function render() {
         root.innerHTML = "";
-        // ヘッダー：ロゴは出さず、右に「遊び方」だけ（遊び方画面は未作成。押しても何も起きない）
-        root.appendChild(makeHeader(null, [[ICON_HELP, "遊び方", null]], false));
+        // ヘッダー：ロゴは出さず、右に「遊び方」（遊び方画面は未作成。押しても何も起きない）
+        // 評価実験の回答を送れる設定のときだけ、その左に「評価実験について」を出す
+        const buttons = [[ICON_HELP, "遊び方", null]];
+        if (data.evaluation) buttons.unshift([ICON_INFO, "評価実験について", () => setTriggerValue("about", true)]);
+        root.appendChild(makeHeader(null, buttons, false));
         // タイトルロゴ：ヘッダーの下に中央揃えで大きく出す
         const logo = el("div", "title-logo");
         logo.innerHTML = TITLE_LOGO;
@@ -69,10 +83,14 @@ export default function(component) {
 
         // 評価実験の回答を送れる設定のときだけ、アンケートのページへ進むボタンを出す
         if (data.evaluation) {
-            const survey = el("button", "submit", "評価実験アンケート");
+            const box = el("div", "survey-box");
+            box.appendChild(el("div", "survey-heading", "評価実験に参加している方へ"));
+            box.appendChild(el("div", "survey-note", "問題を解き終わったら、最後に答えてください"));
+            const survey = el("button", "submit survey-button", "評価実験アンケート");
             survey.type = "button";
             survey.addEventListener("click", () => setTriggerValue("survey", true));
-            root.appendChild(survey);
+            box.appendChild(survey);
+            root.appendChild(box);
         }
     }
 
@@ -98,7 +116,12 @@ def show():
         },
         on_next_change=lambda: None,
         on_survey_change=lambda: None,
+        on_about_change=lambda: None,
     )
+
+    if result.about:
+        st.session_state.page = "about"
+        st.rerun()
 
     if result.survey:
         st.session_state.page = "survey"

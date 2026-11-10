@@ -64,7 +64,7 @@ export default function(component) {
         top.appendChild(document.createTextNode(n + " "));
         top.appendChild(el("span", "mark " + (isOk(n) ? "ok" : "ng"), isModel(n) ? "○" : (isOk(n) ? "※" : "×")));
         box.appendChild(top);
-        // 上の番号マスは自分の解答のまま出す（未回答は空。高さをそろえるため空白を入れる）
+        // 上の番号マスは自分の解答のまま出す（未解答は空。高さをそろえるため空白を入れる）
         box.appendChild(el("span", "kanji", answers[String(n)] || "\u00a0"));
         bar.appendChild(box);
     });
@@ -117,7 +117,7 @@ export default function(component) {
     }
 
     // 熟語カードの空欄に、選んでいる表示（模範解答か自分の解答）の漢字を入れる
-    // 自分の解答で未回答の空欄は空のままにする。枠の色（正解は緑、不正解は赤）はどちらの表示でも同じ
+    // 自分の解答で未解答の空欄は空のままにする。枠の色（正解は緑、不正解は赤）はどちらの表示でも同じ
     function render() {
         const view = parentElement.answerView || "model";
         Object.keys(viewButtons).forEach((v) => viewButtons[v].classList.toggle("on", v === view));
