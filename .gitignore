@@ -11,3 +11,6 @@ tools/puzzle_generate/join_2002.csv
 # 問題生成の作業用の出力（生成直後の問題と類似度の結果）
 tools/puzzle_generate/output/
 tools/puzzle_generate/check/
+
+# 評価実験の鍵とスプレッドシートのID（GitHubに上げない）
+.streamlit/secrets.toml

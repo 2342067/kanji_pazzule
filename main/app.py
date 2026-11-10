@@ -6,7 +6,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from main.style import apply_style
-from screens import title, question_select, question, answer
+from screens import title, question_select, question, answer, evaluation
 
 apply_style()
 
@@ -22,3 +22,7 @@ elif st.session_state.page == "question":
     question.show()
 elif st.session_state.page == "answer":
     answer.show()
+elif st.session_state.page == "evaluation":
+    evaluation.show()
+elif st.session_state.page == "survey":
+    evaluation.show_survey()

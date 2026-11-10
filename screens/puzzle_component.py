@@ -12,6 +12,8 @@ CSS = COMMON_CSS + """
 .box.error { border-color: var(--err); background: var(--err-bg); }
 .box.error input { color: var(--err); font-size: 16px; }
 .blank.selected { background: var(--sel-bg); border-color: var(--sel-border); }
+.blank { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+.blank.hold { background: var(--sel-border); border-color: var(--sel-border); }
 """
 
 JS = COMMON_JS + """
@@ -21,7 +23,7 @@ export default function(component) {
 
     // 再実行されても入力を失わないよう、状態は parentElement に持たせる
     if (!parentElement.puzzleState) {
-        parentElement.puzzleState = { answers: {}, drafts: {}, selected: null, warning: "", confirm: false, backConfirm: false };
+        parentElement.puzzleState = { answers: {}, drafts: {}, selected: null, warning: "", confirm: false, backConfirm: false, startedAt: Date.now() };
     }
     const state = parentElement.puzzleState;
 
@@ -38,6 +40,12 @@ export default function(component) {
     const backButton = header.buttons[0];
     const bar = el("div", "bar");
     const warning = el("div", "warning");
+    // 経過時間：この問題を開いてからの時間を1秒ごとに表示する
+    const elapsed = () => Math.floor((Date.now() - state.startedAt) / 1000);
+    const infoRow = makeQuestionInfo(data.info, elapsed());
+    header.appendChild(infoRow);
+    clearInterval(parentElement.puzzleTimer);
+    parentElement.puzzleTimer = setInterval(() => { infoRow.time.textContent = formatTime(elapsed()); }, 1000);
     header.appendChild(bar);
     header.appendChild(warning);
     root.appendChild(header);
@@ -87,7 +95,12 @@ export default function(component) {
             if (ch.n !== undefined) {
                 const blank = el("span", "blank");
                 blank.dataset.num = ch.n;
-                blank.addEventListener("click", () => toggle(ch.n));
+                blank.addEventListener("click", () => {
+                    // 長押しのあとに出るクリックは無視する
+                    if (blank.skipClick) { blank.skipClick = false; return; }
+                    toggle(ch.n);
+                });
+                addLongPress(blank, ch.n);
                 slot.appendChild(blank);
                 num.textContent = ch.n;
             } else {
@@ -98,6 +111,59 @@ export default function(component) {
         });
         grid.appendChild(word);
     });
+
+    // 問題側の空欄の長押し：LONG_PRESS_MS 以上押して離すと、上の解答欄の同じ番号が入力状態になる
+    // （スマホでは指を離した瞬間でないとキーボードが出ないため、離したときに移る）
+    // 押している間、時間に達したら色を変えて知らせる。指が動いたら（スクロールなど）取り消す
+    const LONG_PRESS_MS = 300;
+    const LONG_PRESS_MOVE = 10;
+    function addLongPress(blank, n) {
+        let timer = null, ready = false, startX = 0, startY = 0;
+        const cancel = () => {
+            clearTimeout(timer);
+            timer = null;
+            ready = false;
+            blank.classList.remove("hold");
+        };
+        blank.addEventListener("pointerdown", (e) => {
+            cancel();
+            blank.skipClick = false;
+            touchPending = false;
+            startX = e.clientX;
+            startY = e.clientY;
+            timer = setTimeout(() => { ready = true; blank.classList.add("hold"); }, LONG_PRESS_MS);
+        });
+        blank.addEventListener("pointermove", (e) => {
+            if (timer === null) return;
+            if (Math.abs(e.clientX - startX) > LONG_PRESS_MOVE || Math.abs(e.clientY - startY) > LONG_PRESS_MOVE) cancel();
+        });
+        blank.addEventListener("pointercancel", cancel);
+        blank.addEventListener("pointerleave", cancel);
+        blank.addEventListener("contextmenu", (e) => e.preventDefault());
+        const focusBox = () => {
+            const box = root.querySelector('.box[data-num="' + n + '"]');
+            box.scrollIntoView({ block: "nearest", inline: "center" });
+            box.querySelector("input").focus();
+        };
+        let touchPending = false;
+        blank.addEventListener("pointerup", (e) => {
+            const wasReady = ready;
+            cancel();
+            if (!wasReady) return;
+            // 指の場合は touchend で入力に移る（下の説明を参照）
+            if (e.pointerType === "touch") { touchPending = true; return; }
+            blank.skipClick = true;
+            focusBox();
+        });
+        // 指を離したあと、ブラウザは「空欄をクリックした」扱いのイベントを続けて出す。
+        // これが入力欄からカーソルを外してキーボードを閉じてしまうので、長押しのときは止める
+        blank.addEventListener("touchend", (e) => {
+            if (!touchPending) return;
+            touchPending = false;
+            e.preventDefault();
+            focusBox();
+        }, { passive: false });
+    }
 
     function render() {
         root.querySelectorAll(".box").forEach((box) => {
@@ -170,6 +236,20 @@ export default function(component) {
             render();
             return;
         }
+        // 違う番号に同じ漢字が入っている間は解答させない（番号と漢字は1対1のため）
+        const sameKanji = {};
+        numbers.forEach((n) => {
+            const kanji = state.answers[String(n)];
+            if (kanji) (sameKanji[kanji] = sameKanji[kanji] || []).push(n);
+        });
+        const duplicated = Object.values(sameKanji).filter((list) => list.length > 1);
+        if (duplicated.length > 0) {
+            state.warning = "同じ漢字が使われています（"
+                + duplicated.map((list) => list.join("番と") + "番").join("、") + "）";
+            state.confirm = false;
+            render();
+            return;
+        }
         // 未回答があれば1回目は警告だけ出し、もう一度押したら解答する
         const empty = numbers.filter((n) => !state.answers[String(n)]);
         if (empty.length > 0 && !state.confirm) {
@@ -179,7 +259,8 @@ export default function(component) {
             return;
         }
         state.confirm = false;
-        setTriggerValue("submit", { answers: state.answers });
+        clearInterval(parentElement.puzzleTimer);
+        setTriggerValue("submit", { answers: state.answers, seconds: elapsed() });
     });
 
     // 戻るボタン：入力があるときは、1回目は警告だけ出し、もう一度押したら問題選択に戻る
@@ -198,6 +279,7 @@ export default function(component) {
     });
 
     render();
+    return () => clearInterval(parentElement.puzzleTimer);
 }
 """
 

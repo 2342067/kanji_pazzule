@@ -1,4 +1,5 @@
 import streamlit as st
+from db.sheet import is_enabled
 from screens.ui_common import APP_TITLE, COMMON_CSS, COMMON_JS
 
 FIELDS = ["理科", "社会", "教養"]
@@ -65,6 +66,14 @@ export default function(component) {
             setTriggerValue("next", { field: state.field, difficulty: state.difficulty, word_count: state.word_count });
         });
         root.appendChild(next);
+
+        // 評価実験の回答を送れる設定のときだけ、アンケートのページへ進むボタンを出す
+        if (data.evaluation) {
+            const survey = el("button", "submit", "評価実験アンケート");
+            survey.type = "button";
+            survey.addEventListener("click", () => setTriggerValue("survey", true));
+            root.appendChild(survey);
+        }
     }
 
     render();
@@ -85,9 +94,15 @@ def show():
             "field": st.session_state.get("field"),
             "difficulty": st.session_state.get("difficulty"),
             "word_count": st.session_state.get("word_count"),
+            "evaluation": is_enabled(),
         },
         on_next_change=lambda: None,
+        on_survey_change=lambda: None,
     )
+
+    if result.survey:
+        st.session_state.page = "survey"
+        st.rerun()
 
     if result.next is not None:
         st.session_state.field = result.next["field"]

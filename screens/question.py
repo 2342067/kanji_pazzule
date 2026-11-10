@@ -1,6 +1,7 @@
 import streamlit as st
 from db.db import get_questions, get_question_words
 from screens.puzzle_component import puzzle
+from screens.title import DIFFICULTIES, WORD_COUNTS
 from screens.ui_common import APP_TITLE
 
 
@@ -49,6 +50,16 @@ def current_question_id():
     return questions[number - 1][0]
 
 
+def question_info():
+    """選んでいる問題を「教科・熟語難度・問題の大きさ・設問番号」の形で返す（例：教養・難しい・大・設問10）"""
+    return "・".join([
+        str(st.session_state.get("field")),
+        DIFFICULTIES.get(st.session_state.get("difficulty"), ""),
+        WORD_COUNTS.get(st.session_state.get("word_count"), ""),
+        "設問" + str(st.session_state.get("question")),
+    ])
+
+
 def show():
     question_id = current_question_id()
 
@@ -61,10 +72,11 @@ def show():
 
     words = build_words(get_question_words(question_id))
 
-    result = puzzle(key=f"puzzle_{question_id}", data={"title": APP_TITLE, "words": words}, on_submit_change=lambda: None, on_back_change=lambda: None)
+    result = puzzle(key=f"puzzle_{question_id}", data={"title": APP_TITLE, "info": question_info(), "words": words}, on_submit_change=lambda: None, on_back_change=lambda: None)
 
     if result.submit is not None:
         st.session_state.answers = result.submit["answers"]
+        st.session_state.seconds = result.submit.get("seconds", 0)
         st.session_state.page = "answer"
         st.rerun()
 

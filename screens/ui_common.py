@@ -74,6 +74,9 @@ COMMON_CSS = """
 .submit:disabled { opacity: 0.5; }
 
 /* 番号マスと熟語カード（問題画面と解答画面で共通） */
+.question-info { display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: var(--sub); margin-bottom: 4px; }
+.timer { display: inline-flex; align-items: center; gap: 3px; font-variant-numeric: tabular-nums; }
+.timer svg { width: 14px; height: 14px; }
 .bar { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
 .box {
     flex: 0 0 auto; width: 48px; height: 60px; border: 2px solid var(--gray-border); border-radius: 8px;
@@ -93,6 +96,7 @@ COMMON_CSS = """
 .blank {
     width: 1.3em; height: 1.3em; border: 2px solid var(--gray-border); border-radius: 4px; box-sizing: border-box;
     display: flex; align-items: center; justify-content: center; cursor: pointer;
+    line-height: 1;   /* 行の高さを決めておかないと、フォントによって四角の中の文字が上に寄る */
 }
 """
 
@@ -101,6 +105,7 @@ COMMON_JS = """
 const ICON_HELP = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.5"/><path d="M6.2 6.2a1.9 1.9 0 1 1 2.6 1.8c-.5.2-.8.6-.8 1.1v.4" stroke-linecap="round"/><circle cx="8" cy="11.6" r=".6" fill="currentColor" stroke="none"/></svg>';
 const ICON_BACK = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const ICON_HOME = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2.5 7.5 8 3l5.5 4.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 6.5V13h3v-3.5h2V13h3V6.5" stroke-linejoin="round"/></svg>';
+const ICON_TIMER = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="9" r="5.5"/><path d="M6.5 1.5h3M8 1.5v2M8 6v3" stroke-linecap="round"/></svg>';
 const ICON_CHECK = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2.5 6.2 5 8.6l4.5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 function el(tag, cls, text) {
@@ -108,6 +113,25 @@ function el(tag, cls, text) {
     if (cls) e.className = cls;
     if (text !== undefined) e.textContent = text;
     return e;
+}
+
+// 秒数を 分:秒（例：00:01）の形にする
+function formatTime(seconds) {
+    const s = Math.max(0, Math.floor(seconds));
+    return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+}
+
+// 問題の情報の行：左に問題の情報、右端にストップウォッチのマークと経過時間
+// 経過時間の文字は row.time で書き換えられる
+function makeQuestionInfo(info, seconds) {
+    const row = el("div", "question-info");
+    row.appendChild(el("span", null, info || ""));
+    const timer = el("span", "timer");
+    timer.innerHTML = ICON_TIMER;
+    row.time = el("span", null, formatTime(seconds));
+    timer.appendChild(row.time);
+    row.appendChild(timer);
+    return row;
 }
 
 function headerButton(icon, label) {
