@@ -170,14 +170,6 @@ def show():
     show_contact()
 
 
-def show_about():
-    """評価実験の説明のページ：タイトル画面の「評価実験について」から開く（中身はこれから書く）"""
-    st.subheader("評価実験について")
-    st.write("準備中です")
-    back_button("タイトルに戻る", "title")
-    show_contact()
-
-
 def show_survey():
     """アンケートのページ：タイトル画面の「評価実験アンケート」から開く。全体の感想を1行送る"""
     st.subheader("評価実験アンケート")

@@ -23,7 +23,8 @@ export default function(component) {
 
     // 再実行されても入力を失わないよう、状態は parentElement に持たせる
     if (!parentElement.puzzleState) {
-        parentElement.puzzleState = { answers: {}, drafts: {}, selected: null, warning: "", confirm: false, backConfirm: false, startedAt: Date.now() };
+        // pausedMs は遊び方を開いていた時間の合計、pauseStart は遊び方を開いた時刻（開いていなければ null）
+        parentElement.puzzleState = { answers: {}, drafts: {}, selected: null, warning: "", confirm: false, backConfirm: false, startedAt: Date.now(), pausedMs: 0, pauseStart: null };
     }
     const state = parentElement.puzzleState;
 
@@ -35,13 +36,17 @@ export default function(component) {
     numbers.sort((a, b) => a - b);
 
     root.innerHTML = "";
-    // ヘッダー：右に「遊び方」（遊び方画面は未作成。押しても何も起きない）と「戻る」
+    // ヘッダー：右に「戻る」と「遊び方」。「遊び方」は今の画面に重ねて出し、開いている間は経過時間を止める
     const header = makeHeader(data.title || "", [[ICON_BACK, "戻る", null], [ICON_HELP, "遊び方", null]], false);
     const backButton = header.buttons[0];
+    const helpButton = header.buttons[1];
     const bar = el("div", "bar");
     const warning = el("div", "warning");
-    // 経過時間：この問題を開いてからの時間を1秒ごとに表示する
-    const elapsed = () => Math.floor((Date.now() - state.startedAt) / 1000);
+    // 経過時間：この問題を開いてからの時間を1秒ごとに表示する。遊び方を開いていた時間は除く
+    const elapsed = () => {
+        const paused = state.pausedMs + (state.pauseStart === null ? 0 : Date.now() - state.pauseStart);
+        return Math.floor((Date.now() - state.startedAt - paused) / 1000);
+    };
     const infoRow = makeQuestionInfo(data.info, elapsed());
     header.appendChild(infoRow);
     clearInterval(parentElement.puzzleTimer);
@@ -262,6 +267,19 @@ export default function(component) {
         clearInterval(parentElement.puzzleTimer);
         setTriggerValue("submit", { answers: state.answers, seconds: elapsed() });
     });
+
+    // 遊び方ボタン：開いた時刻を覚えて経過時間を止め、閉じたら止めていた時間を合計に足して再開する
+    function showHelp() {
+        if (state.pauseStart === null) state.pauseStart = Date.now();
+        openOverlay(root, "遊び方", helpBody(), () => {
+            state.pausedMs += Date.now() - state.pauseStart;
+            state.pauseStart = null;
+            infoRow.time.textContent = formatTime(elapsed());
+        });
+    }
+    helpButton.addEventListener("click", showHelp);
+    // 遊び方を開いたまま画面が作り直されたときは、開いた状態に戻す
+    if (state.pauseStart !== null) showHelp();
 
     // 戻るボタン：入力があるときは、1回目は警告だけ出し、もう一度押したら問題選択に戻る
     // 何も入力していないときは、警告なしですぐ戻る

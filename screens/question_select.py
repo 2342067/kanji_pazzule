@@ -1,12 +1,23 @@
 import streamlit as st
 from db.db import get_questions
+from screens.title import WORD_COUNTS, difficulties_of
 from screens.ui_common import APP_TITLE, COMMON_CSS, COMMON_JS
 
 HTML = '<div class="root"></div>'
 
-# 設問は番号マスと同じ枠の四角を5列で並べる
+# 上に熟語難度と問題の大きさのボタン、その下に設問を並べる
+# 熟語難度と問題の大きさは番号マスと同じ枠（2px、角丸8px）で、選択肢の数で等分する。選んだものはロゴの青を薄めた色
+# 設問は番号マスと同じ枠の四角を5列で並べる（熟語難度と問題の大きさを両方選ぶと出る）
 # 開いた問題は灰色のチェック、全問正解した問題は緑のチェック（アプリを閉じるまで残る）
 CSS = COMMON_CSS + """
+.field-label { font-size: 14px; font-weight: bold; margin: 18px 0 8px; }
+.options { display: grid; gap: 8px; }
+.opt {
+    height: 48px; font-size: 17px; border-radius: 8px; border: 2px solid var(--gray-border);
+    background: var(--bg); color: var(--fg); font-family: inherit;
+}
+/* 選んだ項目：ロゴの青を薄めた色（黄色は問題画面の番号のハイライト専用にする） */
+.opt.selected { background: #e6f1fb; border-color: #378ADD; color: #185fa5; font-weight: bold; }
 .qgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
 .qbtn {
     position: relative;
@@ -33,13 +44,40 @@ export default function(component) {
     const root = parentElement.querySelector(".root");
     root.innerHTML = "";
 
-    // ヘッダー：右に「遊び方」（遊び方画面は未作成。押しても何も起きない）と「戻る」
+    // ヘッダー：右に「戻る」と「遊び方」。「遊び方」は今の画面に重ねて出す
     root.appendChild(makeHeader(data.title, [
         [ICON_BACK, "戻る", () => setTriggerValue("back", true)],
-        [ICON_HELP, "遊び方", null],
+        [ICON_HELP, "遊び方", () => openOverlay(root, "遊び方", helpBody())],
     ], false));
-    root.appendChild(el("div", "page-heading", "問題選択"));
+    // 見出しに、選んでいる教科をかっこで付ける（例：問題選択（教養））
+    root.appendChild(el("div", "page-heading", "問題選択（" + data.field + "）"));
 
+    // 熟語難度と問題の大きさ。押すと選び、もう一度押すと外す。選び直すたびに下の設問を出し直す
+    const selected = { difficulty: data.difficulty, word_count: data.word_count };
+    const group = (label, items, key) => {
+        root.appendChild(el("div", "field-label", label));
+        const row = el("div", "options");
+        row.style.gridTemplateColumns = "repeat(" + items.length + ", 1fr)";
+        items.forEach(([value, text]) => {
+            const b = el("button", "opt", text);
+            b.type = "button";
+            b.classList.toggle("selected", selected[key] === value);
+            pressable(b, true);
+            b.addEventListener("click", () => {
+                selected[key] = selected[key] === value ? null : value;
+                setTriggerValue("condition", { difficulty: selected.difficulty, word_count: selected.word_count });
+            });
+            row.appendChild(b);
+        });
+        root.appendChild(row);
+    };
+    group("熟語難度", data.difficulties, "difficulty");
+    group("問題の大きさ", data.word_counts, "word_count");
+
+    // 設問は、熟語難度と問題の大きさを両方選んでから出す
+    if (data.difficulty === null || data.word_count === null) return;
+
+    root.appendChild(el("div", "field-label", "設問"));
     if (data.count === 0) {
         root.appendChild(el("div", "none", "問題がありません"));
         return;
@@ -49,6 +87,7 @@ export default function(component) {
     for (let i = 1; i <= data.count; i++) {
         const b = el("button", "qbtn", String(i));
         b.type = "button";
+        pressable(b, true);
         const mark = data.progress[String(i)];
         let label = "設問" + i;
         if (mark) {
@@ -82,7 +121,11 @@ def show():
     field = st.session_state.get("field")
     difficulty = st.session_state.get("difficulty")
     word_count = st.session_state.get("word_count")
-    questions = get_questions(field, difficulty, word_count)
+
+    # 設問は、熟語難度と問題の大きさを両方選んでから出す
+    questions = []
+    if difficulty is not None and word_count is not None:
+        questions = get_questions(field, difficulty, word_count)
 
     # 問題ごとの記録（"opened" または "perfect"）。session_state にあるのでアプリを閉じるまで残る
     all_progress = st.session_state.setdefault("progress", {})
@@ -94,10 +137,25 @@ def show():
 
     result = select_screen(
         key="select_screen",
-        data={"title": APP_TITLE, "count": len(questions), "progress": progress},
+        data={
+            "title": APP_TITLE,
+            "field": field,
+            "difficulties": [[d, label] for d, label in difficulties_of(field).items()],
+            "word_counts": [[n, label] for n, label in WORD_COUNTS.items()],
+            "difficulty": difficulty,
+            "word_count": word_count,
+            "count": len(questions),
+            "progress": progress,
+        },
+        on_condition_change=lambda: None,
         on_pick_change=lambda: None,
         on_back_change=lambda: None,
     )
+
+    if result.condition is not None:
+        st.session_state.difficulty = result.condition["difficulty"]
+        st.session_state.word_count = result.condition["word_count"]
+        st.rerun()
 
     if result.pick is not None:
         number = int(result.pick)

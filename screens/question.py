@@ -1,7 +1,7 @@
 import streamlit as st
 from db.db import get_questions, get_question_words
 from screens.puzzle_component import puzzle
-from screens.title import DIFFICULTIES, WORD_COUNTS
+from screens.title import WORD_COUNTS, difficulties_of
 from screens.ui_common import APP_TITLE
 
 
@@ -54,7 +54,7 @@ def question_info():
     """選んでいる問題を「教科・熟語難度・問題の大きさ・設問番号」の形で返す（例：教養・難しい・大・設問10）"""
     return "・".join([
         str(st.session_state.get("field")),
-        DIFFICULTIES.get(st.session_state.get("difficulty"), ""),
+        difficulties_of(st.session_state.get("field")).get(st.session_state.get("difficulty"), ""),
         WORD_COUNTS.get(st.session_state.get("word_count"), ""),
         "設問" + str(st.session_state.get("question")),
     ])

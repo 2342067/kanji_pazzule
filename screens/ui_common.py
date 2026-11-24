@@ -6,6 +6,9 @@
     title.svg  : タイトル画面の大きいロゴ（字間4.5px）
     header.svg : ヘッダーの小さいロゴ（字間0.5px）
     ロゴの文字は currentColor で塗っているので、文字色（--fg）に合わせて表示される。「抜」のマスとピースの青、「抜」の白い字は固定
+
+「遊び方」と「評価実験について」は、今の画面の上に重ねて出す（後ろを暗くし、中央に白いカードを出す）
+    文章はこのファイルの GUIDE_HELP と GUIDE_ABOUT に書く。カードを出す部品は JS の openOverlay
 """
 
 import json
@@ -23,6 +26,68 @@ def _read_logo(name):
 
 TITLE_LOGO_SVG = _read_logo("title.svg")
 HEADER_LOGO_SVG = _read_logo("header.svg")
+
+# ==== 「遊び方」の文章 ====
+# rules：ルール、example：例題の図（c は見える漢字、n は空欄の番号）と答え、sections：見出しと箇条書き
+GUIDE_HELP = {
+    "rules": [
+        "熟語の空欄に入る漢字を考えるパズルです",
+        "同じ番号の空欄には、同じ漢字が入ります",
+        "番号が違えば、入る漢字も違います",
+    ],
+    "example": {
+        "words": [
+            [{"n": 2}, {"n": 1}],
+            [{"c": "母"}, {"n": 1}],
+            [{"c": "入"}, {"n": 2}],
+            [{"c": "科"}, {"n": 2}],
+        ],
+        "answers": {"1": "校", "2": "学"},
+    },
+    "sections": [
+        {
+            "heading": "入力のしかた",
+            "items": [
+                "画面の上に並んだ番号のマスをタップして、漢字を1文字入力します",
+                "入力した漢字は、同じ番号の空欄すべてに入ります",
+                "熟語の空欄をタップすると、同じ番号のマスと空欄に色が付きます",
+                "熟語の空欄を長押しすると、その番号の入力に移ります",
+            ],
+        },
+        {
+            "heading": "解答する",
+            "items": [
+                "「解答する」を押すと、正解数と模範解答が出ます",
+                "違う番号に同じ漢字が入っていると、解答できません",
+                "未解答があるときは、もう一度押すと解答します",
+                "模範解答と違っても、すべての熟語が成り立っていれば正解です（別解）",
+            ],
+        },
+        {
+            "heading": "経過時間",
+            "items": [
+                "右上の時間は、問題を開いてからの時間です",
+                "遊び方を開いている間は止まります",
+            ],
+        },
+    ],
+}
+
+# ==== 「評価実験について」の文章 ====
+# 回答の利用についての文と問い合わせ先は、アンケートのページ（evaluation.py）と同じものを画面側から渡す
+GUIDE_ABOUT = {
+    "intro": "卒業研究で作った「漢字抜け熟語パズル」を実際に解いてもらい、問題の難しさや使いやすさを調べる実験です。",
+    "steps_heading": "流れ",
+    "steps": [
+        "教科を選び、熟語難度と問題の大きさを選んで、問題を解きます",
+        "解答したら、解答の画面の下にある「解答を送信」から、その問題の記録を送ります（1問解くごとに送ります）",
+        "解き終わったら、タイトルの画面の「評価実験アンケート」に答えます（最後に1回だけ）",
+    ],
+    "notes_heading": "お願い",
+    "notes": [
+        "解答の記録とアンケートは名前で結びつけます。毎回同じ名前を入力してください",
+    ],
+}
 
 COMMON_CSS = """
 .root {
@@ -58,6 +123,11 @@ COMMON_CSS = """
 }
 .hbtn svg { width: 14px; height: 14px; flex: 0 0 auto; }
 .hbtn:active { background: var(--gray-bg); }
+/* 押した感：押すと画面が変わるボタン（教科、熟語難度・大きさ、設問の番号、ヘッダー）は、指が触れた瞬間に少し縮めて色を付ける
+   .pressed は JS の pressable で付ける。教科・難度・大きさ・設問はロゴの青を薄めた色、ヘッダーは灰色 */
+.opt, .qbtn, .hbtn { transition: transform 0.08s, background-color 0.08s; -webkit-tap-highlight-color: transparent; }
+.opt.pressed, .qbtn.pressed { transform: scale(0.95); background: #e6f1fb; border-color: #378ADD; color: #185fa5; }
+.hbtn.pressed { transform: scale(0.95); background: var(--gray-bg); }
 .hbtn.confirm { border-color: var(--err); color: var(--err); background: var(--err-bg); }
 /* 解答画面のボタンは文字が長いので、幅の狭いスマホでは小さくしてタイトルが切れないようにする */
 @media (max-width: 400px) {
@@ -101,6 +171,45 @@ COMMON_CSS = """
     display: flex; align-items: center; justify-content: center; cursor: pointer;
     line-height: 1;   /* 行の高さを決めておかないと、フォントによって四角の中の文字が上に寄る */
 }
+
+/* 重ねて出す画面（遊び方、評価実験について）：後ろを暗くし、中央に白いカードを出す。長いときはカードの中をスクロールする */
+.overlay {
+    position: fixed; inset: 0; z-index: 1000; background: rgba(0, 0, 0, 0.45);
+    display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box;
+}
+.overlay-card {
+    background: var(--bg); color: var(--fg); border-radius: 12px; width: 100%; max-width: 420px; max-height: 100%;
+    display: flex; flex-direction: column; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
+}
+.overlay-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 10px 8px 16px; font-size: 16px; font-weight: bold; }
+.overlay-close {
+    width: 32px; height: 32px; border-radius: 50%; border: none; background: transparent; color: var(--sub);
+    display: flex; align-items: center; justify-content: center; padding: 0;
+}
+.overlay-close svg { width: 16px; height: 16px; }
+.overlay-close:active { background: var(--gray-bg); }
+.overlay-body { overflow-y: auto; overscroll-behavior: contain; padding: 0 16px; font-size: 14px; line-height: 1.7; }
+.overlay-foot { padding: 12px 16px 16px; }
+.overlay-ok {
+    width: 100%; font-size: 14px; padding: 8px; font-family: inherit; border-radius: 999px;
+    border: 1px solid #378ADD; background: var(--bg); color: #185fa5;
+}
+.overlay-ok:active { background: #e6f1fb; }
+.guide-heading { font-size: 14px; font-weight: bold; color: #185fa5; margin: 14px 0 2px; }
+.guide-heading:first-child { margin-top: 0; }
+.guide-text { margin: 0; }
+.guide-list { margin: 0; padding-left: 1.3em; }
+.guide-list li { margin: 2px 0; }
+.guide-small { font-size: 12px; color: var(--sub); margin: 14px 0 0; }
+/* 遊び方の例題の図：上に問題、下に答えを入れた形を出す
+   熟語カードは問題画面と同じ部品・同じ大きさ（.word、.slot、.blank）をそのまま使い、字の大きさや位置は変えない
+   答えを入れた空欄は、問題画面で選んだ番号と同じ黄色にする */
+.example { border: 1px solid var(--card-border); border-radius: 8px; padding: 8px 10px 10px; margin: 8px 0 0; }
+.example-label { font-size: 12px; color: var(--sub); line-height: 1.4; }
+.example-words { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 4px 0 8px; line-height: normal; }
+.example-words:last-child { margin-bottom: 0; }
+.example .blank { cursor: default; }
+.example .blank.filled { background: var(--sel-bg); border-color: var(--sel-border); }
 """
 
 # 各画面の JS の先頭に置く共通の関数（export default より前に書く）
@@ -110,6 +219,7 @@ const ICON_INFO = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" st
 const ICON_BACK = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const ICON_HOME = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2.5 7.5 8 3l5.5 4.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 6.5V13h3v-3.5h2V13h3V6.5" stroke-linejoin="round"/></svg>';
 const ICON_TIMER = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="9" r="5.5"/><path d="M6.5 1.5h3M8 1.5v2M8 6v3" stroke-linecap="round"/></svg>';
+const ICON_CLOSE = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke-linecap="round"/></svg>';
 const ICON_CHECK = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M2.5 6.2 5 8.6l4.5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 function el(tag, cls, text) {
@@ -138,11 +248,41 @@ function makeQuestionInfo(info, seconds) {
     return row;
 }
 
+// 押した感を付ける。指（またはマウス）が触れた瞬間に .pressed を付け、離したら外す
+// iPhone の Safari では CSS の :active が効かないことがあるので、JS で付ける
+// 素早く押したときも見えるよう、付けてから最低 120ms は残す。スクロールで指が動いたとき（pointercancel）も外す
+// keep が true のボタンは、押したら次の画面に切り替わるまで .pressed を残す（画面を作り直すと消える）
+function pressable(b, keep) {
+    let since = 0;
+    let held = false;
+    const release = () => {
+        if (held) return;
+        const wait = Math.max(0, 120 - (Date.now() - since));
+        setTimeout(() => { if (!held) b.classList.remove("pressed"); }, wait);
+    };
+    b.addEventListener("pointerdown", () => {
+        since = Date.now();
+        b.classList.add("pressed");
+    });
+    b.addEventListener("pointerup", release);
+    b.addEventListener("pointercancel", release);
+    b.addEventListener("pointerleave", release);
+    if (keep) {
+        b.addEventListener("click", () => {
+            held = true;
+            b.classList.add("pressed");
+        });
+    }
+    return b;
+}
+
+// ヘッダーのボタン。押した感を付ける（「戻る」の確認や遊び方のように画面が変わらないこともあるので、離したら外す）
 function headerButton(icon, label) {
     const b = el("button", "hbtn");
     b.type = "button";
     b.innerHTML = icon;
     b.appendChild(el("span", null, label));
+    pressable(b, false);
     return b;
 }
 
@@ -166,9 +306,112 @@ function makeHeader(title, buttons, compact) {
     h.appendChild(row);
     return h;
 }
+
+// 今の画面の上に重ねてカードを出す。右上の×、下の「閉じる」、カードの外（暗い部分）のどれかを押すと閉じる
+// body はカードの中身、onClose は閉じたときの処理（なくてもよい）
+function openOverlay(root, title, body, onClose) {
+    const overlay = el("div", "overlay");
+    const card = el("div", "overlay-card");
+    card.setAttribute("role", "dialog");
+    card.setAttribute("aria-modal", "true");
+    card.setAttribute("aria-label", title);
+    const close = () => {
+        overlay.remove();
+        if (onClose) onClose();
+    };
+
+    const head = el("div", "overlay-head");
+    head.appendChild(el("span", null, title));
+    const x = el("button", "overlay-close");
+    x.type = "button";
+    x.innerHTML = ICON_CLOSE;
+    x.setAttribute("aria-label", "閉じる");
+    x.addEventListener("click", close);
+    head.appendChild(x);
+    card.appendChild(head);
+
+    const bodyBox = el("div", "overlay-body");
+    bodyBox.appendChild(body);
+    card.appendChild(bodyBox);
+
+    const foot = el("div", "overlay-foot");
+    const ok = el("button", "overlay-ok", "閉じる");
+    ok.type = "button";
+    ok.addEventListener("click", close);
+    foot.appendChild(ok);
+    card.appendChild(foot);
+
+    overlay.appendChild(card);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+    root.appendChild(overlay);
+}
+
+// 見出しと箇条書き（ordered が true なら番号付き）を box に足す
+function addGuideList(box, heading, items, ordered) {
+    if (heading) box.appendChild(el("div", "guide-heading", heading));
+    const list = el(ordered ? "ol" : "ul", "guide-list");
+    items.forEach((text) => list.appendChild(el("li", null, text)));
+    box.appendChild(list);
+}
+
+// 例題の熟語を並べる。作り方は問題画面の熟語と同じ。answers があれば空欄に答えの漢字を入れる
+function exampleWords(words, answers) {
+    const row = el("div", "example-words");
+    words.forEach((w) => {
+        const word = el("div", "word");
+        w.forEach((ch) => {
+            const slot = el("div", "slot");
+            const num = el("span", "n");
+            if (ch.n !== undefined) {
+                const blank = el("span", "blank", answers ? answers[String(ch.n)] : "");
+                if (answers) blank.classList.add("filled");
+                slot.appendChild(blank);
+                num.textContent = ch.n;
+            } else {
+                slot.appendChild(el("span", "ch", ch.c));
+            }
+            slot.appendChild(num);
+            word.appendChild(slot);
+        });
+        row.appendChild(word);
+    });
+    return row;
+}
+
+// 「遊び方」の中身：ルール、例題の図、操作の説明
+function helpBody() {
+    const box = el("div");
+    addGuideList(box, "ルール", GUIDE_HELP.rules, false);
+    const example = el("div", "example");
+    example.appendChild(el("div", "example-label", "例題"));
+    example.appendChild(exampleWords(GUIDE_HELP.example.words, null));
+    const answers = GUIDE_HELP.example.answers;
+    const answerText = Object.keys(answers).map((n) => n + "は「" + answers[n] + "」").join("、");
+    example.appendChild(el("div", "example-label", "答え（" + answerText + "）"));
+    example.appendChild(exampleWords(GUIDE_HELP.example.words, answers));
+    box.appendChild(example);
+    GUIDE_HELP.sections.forEach((section) => addGuideList(box, section.heading, section.items, false));
+    return box;
+}
+
+// 「評価実験について」の中身：説明、流れ、お願い、回答の利用について、問い合わせ先
+// extra は { consent_title, consent, contact }（アンケートのページと同じ文を画面側から渡す）
+function aboutBody(extra) {
+    const box = el("div");
+    box.appendChild(el("p", "guide-text", GUIDE_ABOUT.intro));
+    addGuideList(box, GUIDE_ABOUT.steps_heading, GUIDE_ABOUT.steps, true);
+    addGuideList(box, GUIDE_ABOUT.notes_heading, GUIDE_ABOUT.notes, false);
+    box.appendChild(el("div", "guide-heading", extra.consent_title));
+    box.appendChild(el("p", "guide-text", extra.consent));
+    if (extra.contact) box.appendChild(el("p", "guide-small", "問い合わせ先：" + extra.contact));
+    return box;
+}
 """
 
 # ロゴの SVG を JS の定数として渡す
 COMMON_JS += "\nconst TITLE_LOGO = " + json.dumps(TITLE_LOGO_SVG, ensure_ascii=False) + ";\n"
+# 「遊び方」「評価実験について」の文章を JS の定数として渡す
+COMMON_JS += "const GUIDE_HELP = " + json.dumps(GUIDE_HELP, ensure_ascii=False) + ";\n"
+COMMON_JS += "const GUIDE_ABOUT = " + json.dumps(GUIDE_ABOUT, ensure_ascii=False) + ";\n"
 COMMON_JS += "const HEADER_LOGO = " + json.dumps(HEADER_LOGO_SVG, ensure_ascii=False) + ";\n"
 
